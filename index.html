@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>The Philosopher's Journey</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #87ceeb; overflow: hidden; font-family: 'Georgia', serif; }
+    canvas { display: block; }
+
+    #hud { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+
+    #crosshair {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      color: rgba(255,255,255,0.85); font-size: 18px;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+    }
+
+    #era-title {
+      position: absolute; top: 22px; left: 50%; transform: translateX(-50%);
+      color: #7a4000; font-size: 21px; font-style: italic;
+      text-shadow: 0 1px 3px rgba(255,220,100,0.6), 0 2px 8px rgba(255,255,255,0.4);
+      letter-spacing: 2px; background: rgba(255,240,200,0.35);
+      padding: 6px 22px; border-radius: 20px; border: 1px solid rgba(200,160,80,0.4);
+    }
+
+    #interact-hint {
+      position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
+      color: #5a2800; font-size: 14px;
+      background: rgba(255,240,200,0.88); padding: 7px 18px; border-radius: 20px;
+      border: 1px solid rgba(180,130,60,0.6);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      display: none;
+    }
+
+    #controls-hint {
+      position: absolute; bottom: 20px; left: 20px;
+      color: rgba(80,40,0,0.7); font-size: 12px; line-height: 1.9;
+      background: rgba(255,240,200,0.55); padding: 8px 14px; border-radius: 10px;
+    }
+
+    #dialogue {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: linear-gradient(to top, rgba(50,30,5,0.97), rgba(60,35,8,0.88));
+      border-top: 2px solid #c09040;
+      padding: 24px 60px 18px;
+      display: none; pointer-events: all;
+    }
+    #dialogue-philosopher {
+      color: #f0c060; font-size: 13px; letter-spacing: 3px; text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    #dialogue-text {
+      color: #f5ead0; font-size: 16px; line-height: 1.75; min-height: 55px;
+      white-space: pre-wrap;
+    }
+    #dialogue-options { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+    .dialogue-btn {
+      background: rgba(180,130,40,0.25); border: 1px solid rgba(200,160,60,0.4);
+      color: #f0dda0; padding: 9px 18px; text-align: left;
+      cursor: pointer; border-radius: 6px; font-size: 15px; font-family: 'Georgia', serif;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .dialogue-btn:hover { background: rgba(200,150,50,0.45); border-color: rgba(240,190,80,0.8); }
+    .dialogue-btn.correct { background: rgba(30,100,50,0.6); border-color: #50c070; color: #90f0a0; }
+    .dialogue-btn.wrong   { background: rgba(120,30,30,0.6); border-color: #c05050; color: #f09090; }
+
+    #result-flash {
+      position: fixed; top: 45%; left: 50%; transform: translate(-50%,-50%);
+      font-size: 30px; font-style: italic; text-shadow: 0 0 20px currentColor;
+      pointer-events: none; display: none; text-align: center;
+    }
+
+    #artifact-panel {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: linear-gradient(135deg, rgba(240,225,180,0.97), rgba(220,200,150,0.97));
+      border: 2px solid #a07820; border-radius: 12px;
+      padding: 30px 40px; max-width: 480px; text-align: center;
+      display: none; pointer-events: all;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    #artifact-panel h2 { color: #5a2800; font-size: 22px; margin-bottom: 14px; }
+    #artifact-panel p  { color: #3a1800; font-size: 15px; line-height: 1.75; margin-bottom: 20px; }
+    #artifact-panel button {
+      background: rgba(160,100,20,0.5); border: 1px solid #a07020;
+      color: #5a2800; padding: 9px 28px; border-radius: 8px;
+      font-size: 15px; font-family: 'Georgia', serif; cursor: pointer;
+    }
+    #artifact-panel button:hover { background: rgba(180,120,30,0.7); }
+
+    #intro {
+      position: fixed; inset: 0;
+      background: linear-gradient(to bottom, #87ceeb 0%, #d4e8ff 50%, #e8d5a0 100%);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 100;
+    }
+    #intro h1 {
+      color: #5a2800; font-size: 44px; letter-spacing: 4px; margin-bottom: 14px;
+      text-shadow: 0 2px 8px rgba(255,220,100,0.5);
+    }
+    #intro p {
+      color: #4a3010; font-size: 16px; max-width: 520px; text-align: center;
+      line-height: 1.9; margin-bottom: 32px;
+      background: rgba(255,240,200,0.6); padding: 16px 24px; border-radius: 12px;
+    }
+    #intro button {
+      background: rgba(180,120,20,0.6); border: 2px solid #a07820;
+      color: #fff8e0; padding: 14px 42px; font-size: 18px; font-family: 'Georgia', serif;
+      cursor: pointer; border-radius: 8px; letter-spacing: 2px;
+      transition: all 0.2s; text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    }
+    #intro button:hover { background: rgba(200,140,30,0.8); border-color: #d0a030; }
+
+    #progress-bar {
+      position: absolute; top: 22px; right: 28px;
+      color: rgba(80,40,0,0.7); font-size: 13px; text-align: right;
+      background: rgba(255,240,200,0.55); padding: 6px 14px; border-radius: 10px;
+    }
+    .progress-dot {
+      display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+      background: rgba(150,100,30,0.3); margin: 0 3px; transition: background 0.5s;
+    }
+    .progress-dot.unlocked { background: #d4a020; box-shadow: 0 0 6px #e0b030; }
+    .progress-dot.current  { background: #6090e0; box-shadow: 0 0 8px #80aaff; }
+  </style>
+</head>
+<body>
+
+<div id="intro">
+  <h1>The Philosopher's Journey</h1>
+  <p>You are an aspiring philosopher in the Greek Agora. Walk among the great minds of history and demonstrate your understanding of the <em>Nature of Science</em> to pass through each gateway of knowledge.</p>
+  <button id="start-btn">Begin the Journey</button>
+</div>
+
+<div id="hud">
+  <div id="crosshair">·</div>
+  <div id="era-title"></div>
+  <div id="interact-hint">Press <strong>E</strong> to examine</div>
+  <div id="controls-hint">WASD — Walk &nbsp;|&nbsp; Mouse — Look &nbsp;|&nbsp; E — Interact</div>
+  <div id="progress-bar"></div>
+</div>
+
+<div id="dialogue">
+  <div id="dialogue-philosopher"></div>
+  <div id="dialogue-text"></div>
+  <div id="dialogue-options"></div>
+</div>
+
+<div id="artifact-panel">
+  <h2 id="artifact-name"></h2>
+  <p id="artifact-desc"></p>
+  <button onclick="document.getElementById('artifact-panel').style.display='none'; resumePointerLock();">Continue</button>
+</div>
+
+<div id="result-flash"></div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.js" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+// ─── ERA DATA ─────────────────────────────────────────────────────────────────
+const ERAS = [
+  {
+    name: "Ancient Greece — 400 BCE",
+    philosopher: {
+      name: "Socrates",
+      greeting: "Ah, a seeker of truth! I know nothing — but perhaps you know something. Tell me, what is science?",
+      question: "Socrates believed knowledge begins with what fundamental practice?",
+      answers: [
+        { text: "A) Accepting established dogma from authorities", correct: false },
+        { text: "B) Questioning assumptions through dialogue (elenchus)", correct: true },
+        { text: "C) Conducting controlled laboratory experiments", correct: false },
+        { text: "D) Measuring the movements of celestial bodies", correct: false },
+      ],
+      correct: "Excellent! The examined life — questioning what we think we know — is the root of all inquiry. The gate ahead is now open.",
+      wrong: "Hmm. You must question your assumptions. Think again.",
+    }
+  },
+  {
+    name: "Medieval Europe — 1200 CE",
+    philosopher: {
+      name: "Roger Bacon",
+      greeting: "Friar Bacon here. I argue that science must be grounded not in scripture alone, but in observation and experiment. What say you?",
+      question: "Roger Bacon is often called a forerunner of the scientific method. What did he emphasize?",
+      answers: [
+        { text: "A) Pure logical deduction from first principles", correct: false },
+        { text: "B) Faith-based acceptance of natural phenomena", correct: false },
+        { text: "C) Empirical observation and experimentation as the basis of knowledge", correct: true },
+        { text: "D) Astrology as the highest scientific discipline", correct: false },
+      ],
+      correct: "Well said! Experiment is the mother of knowledge. The next gate awaits.",
+      wrong: "Nay! Open your eyes — observe the world, then reconsider.",
+    }
+  },
+  {
+    name: "Scientific Revolution — 1620 CE",
+    philosopher: {
+      name: "Francis Bacon",
+      greeting: "Knowledge is power! I have laid out a new method — induction from facts. But do you truly understand what distinguishes science from mere speculation?",
+      question: "Francis Bacon's Novum Organum proposed that scientific knowledge should be built by:",
+      answers: [
+        { text: "A) Deducing truths from ancient Greek texts", correct: false },
+        { text: "B) Inductively generalizing from systematic empirical observations", correct: true },
+        { text: "C) Relying on mathematical models alone without experiments", correct: false },
+        { text: "D) Trusting the intuitions of gifted individual geniuses", correct: false },
+      ],
+      correct: "Precisely! Induction from nature itself — not from books — builds true knowledge. Proceed!",
+      wrong: "You grasp still at shadows. Return to the particulars of experience.",
+    }
+  },
+  {
+    name: "Enlightenment — 1750 CE",
+    philosopher: {
+      name: "David Hume",
+      greeting: "Reason and custom shape our world. Yet I must ask — can we ever truly prove a universal law from finite observations?",
+      question: "Hume's 'problem of induction' argues that:",
+      answers: [
+        { text: "A) Scientific laws can be proven absolutely through enough experiments", correct: false },
+        { text: "B) No amount of observed cases can logically guarantee a universal scientific law", correct: true },
+        { text: "C) Mathematics alone can derive all scientific truths", correct: false },
+        { text: "D) Sensory experience is always perfectly reliable", correct: false },
+      ],
+      correct: "Splendid! Even a thousand sunrises cannot logically guarantee tomorrow's. Science deals in probability, not certainty. Onward!",
+      wrong: "Consider the sun — has it always risen? Custom feels like necessity, but is it?",
+    }
+  },
+  {
+    name: "Modern Philosophy — 1960 CE",
+    philosopher: {
+      name: "Karl Popper",
+      greeting: "Science progresses not by verification, but by bold conjectures and rigorous refutation. What separates science from pseudoscience?",
+      question: "Karl Popper's criterion of 'falsifiability' states that a theory is scientific only if:",
+      answers: [
+        { text: "A) It has been verified by a majority of scientists", correct: false },
+        { text: "B) It explains all phenomena without exception", correct: false },
+        { text: "C) It can be tested and potentially proven false by observation or experiment", correct: true },
+        { text: "D) It originates from a prestigious academic institution", correct: false },
+      ],
+      correct: "Brilliant! Falsifiability is the hallmark of science. You have traversed all eras of thought. You have earned your place among the seekers of truth.",
+      wrong: "Not quite. A theory that cannot possibly be wrong tells us nothing at all.",
+    }
+  }
+];
+
+const ARTIFACT_DATA = [
+  {
+    name: "Sundial",
+    desc: "The gnomon casts a shadow across the hour-lines carved in stone. The Greeks used the shadow's position to divide the day — a demonstration that natural phenomena follow predictable, measurable patterns. Observation of nature leads to knowledge.",
+  },
+  {
+    name: "Stone Tablet — Pythagorean Theorem",
+    desc: "Carved in marble: a² + b² = c²\n\nPythagoras demonstrated that mathematical truths apply universally to the physical world. This was a revolutionary insight: the universe has an underlying rational structure that human reason can discover.",
+  },
+  {
+    name: "Archimedes Screw",
+    desc: "A helical spiral inside a cylinder, turned by hand to lift water uphill. Archimedes designed this device by observing the properties of geometry. Technology and science arise together — understanding nature allows us to shape it.",
+  },
+  {
+    name: "Lever and Fulcrum",
+    desc: "\"Give me a place to stand and I shall move the Earth.\" — Archimedes\n\nThe lever reveals that a small force can move a great weight through the right arrangement. Science discovers principles that amplify human capacity beyond brute strength.",
+  },
+  {
+    name: "Celestial Globe",
+    desc: "Stars and constellations are etched across this bronze sphere. The Greeks charted the heavens with careful observation across seasons and years. Astronomy was among the first sciences — showing that patient, systematic observation reveals order in the cosmos.",
+  },
+  {
+    name: "Clepsydra (Water Clock)",
+    desc: "Water drips at a constant rate from one vessel to another, marking equal intervals of time. The Greeks used this device to measure time objectively — independent of the sun. Measurement and standardization are the foundations of empirical science.",
+  },
+];
+
+// ─── SCENE SETUP ──────────────────────────────────────────────────────────────
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
+scene.fog = new THREE.Fog(0xc8dff0, 60, 160);
+
+const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.05, 300);
+camera.position.set(0, 1.7, 10);
+
+// ─── AUDIO ────────────────────────────────────────────────────────────────────
+let audioCtx = null;
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  // Breeze: low-pass filtered looping noise
+  const bufSize = audioCtx.sampleRate * 3;
+  const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) d[i] = Math.random() * 2 - 1;
+  const breezeSource = audioCtx.createBufferSource();
+  breezeSource.buffer = buf;
+  breezeSource.loop = true;
+  const breezeFilter = audioCtx.createBiquadFilter();
+  breezeFilter.type = 'lowpass';
+  breezeFilter.frequency.value = 320;
+  const breezeGain = audioCtx.createGain();
+  breezeGain.gain.value = 0.025;
+  breezeSource.connect(breezeFilter);
+  breezeFilter.connect(breezeGain);
+  breezeGain.connect(audioCtx.destination);
+  breezeSource.start();
+
+  // Crowd murmur: slightly higher-pass noise at low volume
+  const buf2 = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+  const d2 = buf2.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) d2[i] = Math.random() * 2 - 1;
+  const crowdSource = audioCtx.createBufferSource();
+  crowdSource.buffer = buf2;
+  crowdSource.loop = true;
+  const crowdFilter = audioCtx.createBiquadFilter();
+  crowdFilter.type = 'bandpass';
+  crowdFilter.frequency.value = 600;
+  crowdFilter.Q.value = 0.5;
+  const crowdGain = audioCtx.createGain();
+  crowdGain.gain.value = 0.015;
+  crowdSource.connect(crowdFilter);
+  crowdFilter.connect(crowdGain);
+  crowdGain.connect(audioCtx.destination);
+  crowdSource.start();
+
+  scheduleBird();
+}
+
+function scheduleBird() {
+  if (!audioCtx) return;
+  const delay = 2.5 + Math.random() * 5;
+  setTimeout(() => {
+    playBirdChirp();
+    scheduleBird();
+  }, delay * 1000);
+}
+
+function playBirdChirp() {
+  if (!audioCtx) return;
+  const notes = [880, 1100, 1320, 990];
+  let time = audioCtx.currentTime;
+  notes.slice(0, 2 + Math.floor(Math.random() * 3)).forEach(freq => {
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq * (0.9 + Math.random() * 0.2), time);
+    osc.frequency.exponentialRampToValueAtTime(freq * 1.4, time + 0.08);
+    g.gain.setValueAtTime(0.06, time);
+    g.gain.exponentialRampToValueAtTime(0.001, time + 0.18);
+    osc.connect(g); g.connect(audioCtx.destination);
+    osc.start(time); osc.stop(time + 0.2);
+    time += 0.15 + Math.random() * 0.1;
+  });
+}
+
+function playArtifactTone() {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(660, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(528, audioCtx.currentTime + 0.6);
+  g.gain.setValueAtTime(0.18, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 2.0);
+  osc.connect(g); g.connect(audioCtx.destination);
+  osc.start(); osc.stop(audioCtx.currentTime + 2.0);
+}
+
+// ─── TEXTURES ─────────────────────────────────────────────────────────────────
+function makeTileTexture() {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 512;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#d8cba8';
+  ctx.fillRect(0, 0, 512, 512);
+  // Tile variation
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      const brightness = 200 + Math.floor(Math.random() * 30);
+      ctx.fillStyle = `rgb(${brightness},${brightness - 15},${brightness - 40})`;
+      ctx.fillRect(col * 64 + 2, row * 64 + 2, 60, 60);
+    }
+  }
+  ctx.strokeStyle = '#b0a07a';
+  ctx.lineWidth = 3;
+  for (let i = 0; i <= 8; i++) {
+    ctx.beginPath(); ctx.moveTo(i * 64, 0); ctx.lineTo(i * 64, 512); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, i * 64); ctx.lineTo(512, i * 64); ctx.stroke();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(25, 60);
+  return tex;
+}
+
+function makeTabletTexture() {
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 192;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#c8bfa0';
+  ctx.fillRect(0, 0, 256, 192);
+  ctx.strokeStyle = '#8a7850'; ctx.lineWidth = 6;
+  ctx.strokeRect(8, 8, 240, 176);
+  ctx.fillStyle = '#4a3010';
+  ctx.font = 'bold 36px serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('a² + b² = c²', 128, 80);
+  ctx.font = '18px serif';
+  ctx.fillText('~ Pythagorean Theorem ~', 128, 120);
+  ctx.font = '14px serif';
+  ctx.fillStyle = '#6a5030';
+  ctx.fillText('Pythagoras of Samos', 128, 155);
+  ctx.fillText('~ 570 BCE', 128, 172);
+  return new THREE.CanvasTexture(c);
+}
+
+function makeGlobeTexture() {
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 256;
+  const ctx = c.getContext('2d');
+  const grad = ctx.createRadialGradient(128, 128, 10, 128, 128, 128);
+  grad.addColorStop(0, '#1a2040');
+  grad.addColorStop(1, '#0a0818');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 256, 256);
+  // Stars
+  for (let i = 0; i < 120; i++) {
+    const x = Math.random() * 256, y = Math.random() * 256;
+    const r = Math.random() * 1.5;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,255,220,${0.4 + Math.random() * 0.6})`;
+    ctx.fill();
+  }
+  // Constellation lines
+  ctx.strokeStyle = 'rgba(150,180,255,0.4)'; ctx.lineWidth = 1;
+  [[60,80,90,50],[90,50,120,70],[120,70,140,55]].forEach(([x1,y1,x2,y2]) => {
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  });
+  return new THREE.CanvasTexture(c);
+}
+
+// ─── BUILDING BLOCKS ──────────────────────────────────────────────────────────
+const matWhiteMarble = new THREE.MeshLambertMaterial({ color: 0xf0ede0 });
+const matGold = new THREE.MeshLambertMaterial({ color: 0xd4a020 });
+const matStone = new THREE.MeshLambertMaterial({ color: 0xb8a878 });
+const matDarkStone = new THREE.MeshLambertMaterial({ color: 0x8a7a5a });
+const matWood = new THREE.MeshLambertMaterial({ color: 0x7a4a18 });
+const matWater = new THREE.MeshLambertMaterial({ color: 0x4a90d0, transparent: true, opacity: 0.75 });
+const matGrass = new THREE.MeshLambertMaterial({ color: 0x6aaa3a });
+const matSkin = new THREE.MeshLambertMaterial({ color: 0xe8c090 });
+const matWhiteToga = new THREE.MeshLambertMaterial({ color: 0xf5f0e8 });
+const matBeard = new THREE.MeshLambertMaterial({ color: 0x504030 });
+const matSandal = new THREE.MeshLambertMaterial({ color: 0xa06030 });
+const matCypress = new THREE.MeshLambertMaterial({ color: 0x2a5a18 });
+
+function buildColumn(x, y, z, h = 5.5, r = 0.22) {
+  const group = new THREE.Group();
+  // Base
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.5, r * 1.6, 0.25, 8), matWhiteMarble);
+  base.position.y = 0.125; base.castShadow = true;
+  group.add(base);
+  // Shaft
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.88, r, h - 0.6, 12), matWhiteMarble);
+  shaft.position.y = h / 2 + 0.1; shaft.castShadow = true;
+  group.add(shaft);
+  // Capital
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.6, r * 0.9, 0.5, 8), matWhiteMarble);
+  cap.position.y = h + 0.05; cap.castShadow = true;
+  group.add(cap);
+  group.position.set(x, y, z);
+  return group;
+}
+
+function buildCypress(x, z) {
+  const group = new THREE.Group();
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.13, 1.6, 6), matWood);
+  trunk.position.y = 0.8; trunk.castShadow = true;
+  group.add(trunk);
+  for (let i = 0; i < 5; i++) {
+    const ri = 0.55 - i * 0.07;
+    const hi = 2.0;
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(ri, hi, 7), matCypress);
+    cone.position.y = 1.6 + i * 1.2;
+    cone.castShadow = true;
+    group.add(cone);
+  }
+  group.position.set(x, 0, z);
+  return group;
+}
+
+function buildFountain(x, z) {
+  const group = new THREE.Group();
+  // Outer basin
+  const basin = new THREE.Mesh(new THREE.CylinderGeometry(2.0, 1.7, 0.5, 16), matWhiteMarble);
+  basin.position.y = 0.25; basin.castShadow = true; basin.receiveShadow = true;
+  group.add(basin);
+  // Water surface
+  const water = new THREE.Mesh(new THREE.CylinderGeometry(1.85, 1.85, 0.05, 16), matWater);
+  water.position.y = 0.48;
+  group.add(water);
+  // Center pillar
+  const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.18, 1.8, 8), matWhiteMarble);
+  pillar.position.y = 0.9; pillar.castShadow = true;
+  group.add(pillar);
+  // Top bowl
+  const topBowl = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.2, 0.35, 10), matWhiteMarble);
+  topBowl.position.y = 1.85;
+  group.add(topBowl);
+  group.position.set(x, 0, z);
+  return group;
+}
+
+// ─── PHILOSOPHER NPC ──────────────────────────────────────────────────────────
+function buildPhilosopherNPC(eraIndex) {
+  const group = new THREE.Group();
+
+  // Sandals
+  [-0.1, 0.1].forEach(dx => {
+    const sandal = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.06, 0.28), matSandal);
+    sandal.position.set(dx, 0.04, 0);
+    group.add(sandal);
+  });
+
+  // Legs
+  [-0.1, 0.1].forEach(dx => {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.55, 7), matSkin);
+    leg.position.set(dx, 0.35, 0);
+    group.add(leg);
+  });
+
+  // Toga body (tapered cylinder)
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 1.05, 10), matWhiteToga);
+  body.position.y = 0.88; body.castShadow = true;
+  group.add(body);
+
+  // Toga drape (slight offset cone)
+  const drape = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.28, 0.5, 8), matWhiteToga);
+  drape.position.set(0.08, 1.28, 0);
+  group.add(drape);
+
+  // Neck
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.2, 7), matSkin);
+  neck.position.y = 1.5;
+  group.add(neck);
+
+  // Head
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 10), matSkin);
+  head.position.y = 1.78; head.castShadow = true;
+  group.add(head);
+
+  // Hair (dark skullcap)
+  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.225, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), matBeard);
+  hair.position.y = 1.78;
+  group.add(hair);
+
+  // Eyes
+  [-0.07, 0.07].forEach(dx => {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 6), new THREE.MeshLambertMaterial({ color: 0x2a1800 }));
+    eye.position.set(dx, 1.8, 0.19);
+    group.add(eye);
+  });
+
+  // Beard
+  const beard = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.18, 0.3, 8), matBeard);
+  beard.position.set(0, 1.57, 0.05);
+  group.add(beard);
+
+  // Arms
+  [-1, 1].forEach(side => {
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.55, 7), matSkin);
+    arm.position.set(side * 0.35, 1.2, 0);
+    arm.rotation.z = side * 0.35;
+    group.add(arm);
+  });
+
+  // Scroll in right hand
+  const scroll = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.35, 7), matWhiteMarble);
+  scroll.rotation.z = Math.PI / 2;
+  scroll.position.set(0.55, 1.05, 0.1);
+  group.add(scroll);
+
+  group.userData = { isPhilosopher: true, eraIndex };
+  return group;
+}
+
+// ─── BACKGROUND NPC ───────────────────────────────────────────────────────────
+function buildBgNPC(x, z, colorIdx) {
+  const colors = [0xf5f0e8, 0xe8ddd0, 0xd8cfc0, 0xeee8dc];
+  const togaMat = new THREE.MeshLambertMaterial({ color: colors[colorIdx % colors.length] });
+  const group = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.26, 1.1, 8), togaMat);
+  body.position.y = 0.75;
+  group.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), matSkin);
+  head.position.y = 1.55;
+  group.add(head);
+  group.position.set(x, 0, z);
+  group.rotation.y = Math.random() * Math.PI * 2;
+  group.userData = { isBgNPC: true, baseX: x, baseZ: z };
+  return group;
+}
+
+// ─── ARTIFACTS ────────────────────────────────────────────────────────────────
+const artifactMeshes = [];
+
+function buildSundial(x, z) {
+  const group = new THREE.Group();
+  // Base pedestal
+  const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.65, 0.55, 12), matStone);
+  ped.position.y = 0.275; ped.castShadow = true;
+  group.add(ped);
+  // Dial plate
+  const plate = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.08, 16), matWhiteMarble);
+  plate.position.y = 0.59;
+  group.add(plate);
+  // Gnomon
+  const gnomon = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.45, 0.04), matDarkStone);
+  gnomon.position.set(0, 0.83, 0);
+  gnomon.rotation.z = -Math.PI * 0.15;
+  group.add(gnomon);
+  // Hour lines
+  for (let i = 0; i < 12; i++) {
+    const line = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.01, 0.4), matDarkStone);
+    line.position.set(0, 0.64, 0);
+    line.rotation.y = (i / 12) * Math.PI * 2;
+    line.position.x = 0.2 * Math.sin(line.rotation.y);
+    line.position.z = 0.2 * Math.cos(line.rotation.y);
+    group.add(line);
+  }
+  group.position.set(x, 0, z);
+  group.userData = { isArtifact: true, artifactIdx: 0 };
+  scene.add(group);
+  artifactMeshes.push(group);
+}
+
+function buildStoneTablet(x, z) {
+  const group = new THREE.Group();
+  // Stand
+  const stand = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.0, 0.18), matStone);
+  stand.position.y = 0.5; stand.castShadow = true;
+  group.add(stand);
+  // Tablet
+  const tabletGeo = new THREE.BoxGeometry(1.4, 0.95, 0.1);
+  const tabletMat = new THREE.MeshLambertMaterial({ map: makeTabletTexture() });
+  const tablet = new THREE.Mesh(tabletGeo, [matStone, matStone, matStone, matStone, tabletMat, matStone]);
+  tablet.position.y = 1.3;
+  tablet.rotation.x = -0.15;
+  tablet.castShadow = true;
+  group.add(tablet);
+  group.position.set(x, 0, z);
+  group.userData = { isArtifact: true, artifactIdx: 1 };
+  scene.add(group);
+  artifactMeshes.push(group);
+}
+
+function buildArchimedesScrew(x, z) {
+  const group = new THREE.Group();
+  // Trough
+  const trough = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 1.8, 8), matWood);
+  trough.rotation.z = Math.PI / 4;
+  trough.position.set(0, 0.65, 0);
+  trough.castShadow = true;
+  group.add(trough);
+  // Supports
+  [-0.6, 0.6].forEach(dx => {
+    const sup = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.9, 0.12), matWood);
+    sup.position.set(dx, 0.45, 0);
+    group.add(sup);
+  });
+  // Small water basin
+  const basin = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.3, 0.25, 10), matStone);
+  basin.position.set(-0.75, 0.12, 0);
+  group.add(basin);
+  const waterSurf = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.05, 10), matWater);
+  waterSurf.position.set(-0.75, 0.24, 0);
+  group.add(waterSurf);
+  group.position.set(x, 0, z);
+  group.userData = { isArtifact: true, artifactIdx: 2 };
+  scene.add(group);
+  artifactMeshes.push(group);
+}
+
+function buildLever(x, z) {
+  const group = new THREE.Group();
+  // Fulcrum (triangle prism)
+  const fulcGeo = new THREE.CylinderGeometry(0, 0.35, 0.6, 3);
+  const fulcrum = new THREE.Mesh(fulcGeo, matStone);
+  fulcrum.position.y = 0.3;
+  fulcrum.castShadow = true;
+  group.add(fulcrum);
+  // Lever beam
+  const beam = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.1, 0.18), matWood);
+  beam.position.y = 0.65;
+  beam.rotation.z = -0.18;
+  beam.castShadow = true;
+  group.add(beam);
+  // Big stone on one end
+  const stone = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.45, 0.45), matDarkStone);
+  stone.position.set(-1.05, 0.42, 0);
+  stone.castShadow = true;
+  group.add(stone);
+  group.position.set(x, 0, z);
+  group.userData = { isArtifact: true, artifactIdx: 3 };
+  scene.add(group);
+  artifactMeshes.push(group);
+}
+
+function buildCelestialGlobe(x, z) {
+  const group = new THREE.Group();
+  // Stand
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 0.2, 8), matDarkStone);
+  base.position.y = 0.1; base.castShadow = true;
+  group.add(base);
+  const column = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.9, 8), matDarkStone);
+  column.position.y = 0.65;
+  group.add(column);
+  // Globe
+  const globeMat = new THREE.MeshLambertMaterial({ map: makeGlobeTexture(), emissive: 0x080818, emissiveIntensity: 0.3 });
+  const globe = new THREE.Mesh(new THREE.SphereGeometry(0.42, 16, 16), globeMat);
+  globe.position.y = 1.32;
+  globe.castShadow = true;
+  group.add(globe);
+  // Rings
+  for (let i = 0; i < 3; i++) {
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(0.46, 0.015, 6, 32),
+      new THREE.MeshLambertMaterial({ color: 0xc0a040 })
+    );
+    ring.position.y = 1.32;
+    ring.rotation.x = (i / 3) * Math.PI;
+    ring.rotation.y = (i / 3) * Math.PI * 0.7;
+    group.add(ring);
+  }
+  group.position.set(x, 0, z);
+  group.userData = { isArtifact: true, artifactIdx: 4 };
+  scene.add(group);
+  artifactMeshes.push(group);
+}
+
+function buildWaterClock(x, z) {
+  const group = new THREE.Group();
+  // Stand frame
+  const frameMat = matWood;
+  [[-0.3,0],[0.3,0]].forEach(([dx]) => {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.6, 0.08), frameMat);
+    leg.position.set(dx, 0.8, 0);
+    leg.castShadow = true;
+    group.add(leg);
+  });
+  const crossbar = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.08, 0.08), frameMat);
+  crossbar.position.y = 1.55;
+  group.add(crossbar);
+  // Upper vessel (tapered, emptying)
+  const upperVes = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.22, 0.55, 8), matStone);
+  upperVes.position.y = 1.2;
+  upperVes.castShadow = true;
+  group.add(upperVes);
+  // Water in upper vessel
+  const upperWater = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.2, 0.35, 8), matWater);
+  upperWater.position.y = 1.15;
+  group.add(upperWater);
+  // Drip tube
+  const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.4, 6), matDarkStone);
+  tube.position.y = 0.85;
+  group.add(tube);
+  // Lower vessel (filling)
+  const lowerVes = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.2, 0.55, 8), matStone);
+  lowerVes.position.y = 0.3;
+  lowerVes.castShadow = true;
+  group.add(lowerVes);
+  group.position.set(x, 0, z);
+  group.userData = { isArtifact: true, artifactIdx: 5 };
+  scene.add(group);
+  artifactMeshes.push(group);
+}
+
+// ─── GATES (archways between eras) ────────────────────────────────────────────
+const gates = [];
+
+function buildGate(z, eraIdx) {
+  const group = new THREE.Group();
+  const h = 5.5, w = 4.5;
+  // Left pillar
+  const lp = new THREE.Mesh(new THREE.BoxGeometry(0.7, h, 0.7), matWhiteMarble);
+  lp.position.set(-w/2 - 0.35, h/2, 0); lp.castShadow = true;
+  group.add(lp);
+  // Right pillar
+  const rp = new THREE.Mesh(new THREE.BoxGeometry(0.7, h, 0.7), matWhiteMarble);
+  rp.position.set(w/2 + 0.35, h/2, 0); rp.castShadow = true;
+  group.add(rp);
+  // Lintel
+  const lintel = new THREE.Mesh(new THREE.BoxGeometry(w + 1.5, 0.65, 0.7), matWhiteMarble);
+  lintel.position.set(0, h + 0.3, 0); lintel.castShadow = true;
+  group.add(lintel);
+  // Pediment triangle
+  const pedGeo = new THREE.CylinderGeometry(0, (w + 1.5) / 2, 1.0, 3);
+  const pediment = new THREE.Mesh(pedGeo, matWhiteMarble);
+  pediment.position.set(0, h + 1.2, 0);
+  pediment.rotation.y = Math.PI / 6;
+  group.add(pediment);
+  // Decorative frieze
+  const frieze = new THREE.Mesh(new THREE.BoxGeometry(w + 1.5, 0.35, 0.3), matStone);
+  frieze.position.set(0, h - 0.15, 0);
+  group.add(frieze);
+
+  // Gate panel (if locked)
+  const gateMat = new THREE.MeshLambertMaterial({ color: 0x6a4010, transparent: true, opacity: 0.88 });
+  const gatePanel = new THREE.Mesh(new THREE.BoxGeometry(w, h - 0.2, 0.18), gateMat);
+  gatePanel.position.set(0, (h - 0.2) / 2, 0);
+  gatePanel.userData = { isGatePanel: true, eraIdx };
+  group.add(gatePanel);
+  gates.push({ group, panel: gatePanel, eraIdx, locked: true, z });
+
+  // Gate bar detail
+  for (let i = -3; i <= 3; i++) {
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.07, h - 0.4, 0.07), new THREE.MeshLambertMaterial({ color: 0x8a6020 }));
+    bar.position.set(i * 0.58, (h - 0.4) / 2, 0.06);
+    gatePanel.add(bar);
+  }
+
+  group.position.z = z;
+  scene.add(group);
+  return group;
+}
+
+function unlockGate(eraIdx) {
+  const gate = gates.find(g => g.eraIdx === eraIdx);
+  if (!gate) return;
+  gate.locked = false;
+  gate.panel.visible = false;
+  updateProgressBar();
+  flashResult('Gateway opened!', '#f0d060');
+}
+
+// ─── WORLD BUILD ──────────────────────────────────────────────────────────────
+const SECTION_D = 22;
+const philosophers = [];
+const bgNPCs = [];
+
+function buildWorld() {
+  // ── Lighting ──
+  const hemi = new THREE.HemisphereLight(0x87ceeb, 0xd4b870, 0.9);
+  scene.add(hemi);
+
+  const sun = new THREE.DirectionalLight(0xfff5d0, 2.2);
+  sun.position.set(60, 90, -30);
+  sun.castShadow = true;
+  sun.shadow.mapSize.width = 2048;
+  sun.shadow.mapSize.height = 2048;
+  sun.shadow.camera.near = 0.5;
+  sun.shadow.camera.far = 300;
+  sun.shadow.camera.left = -80;
+  sun.shadow.camera.right = 80;
+  sun.shadow.camera.top = 80;
+  sun.shadow.camera.bottom = -80;
+  sun.shadow.bias = -0.001;
+  scene.add(sun);
+
+  // Sun disc in sky
+  const sunDisc = new THREE.Mesh(
+    new THREE.CircleGeometry(4, 24),
+    new THREE.MeshBasicMaterial({ color: 0xfffbe0 })
+  );
+  sunDisc.position.set(80, 110, -60);
+  scene.add(sunDisc);
+
+  // ── Ground ──
+  const tileTex = makeTileTexture();
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(120, 160),
+    new THREE.MeshLambertMaterial({ map: tileTex })
+  );
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.set(0, 0, -55);
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // Grass beyond agora
+  const grassGeo = new THREE.PlaneGeometry(400, 400);
+  const grass = new THREE.Mesh(grassGeo, new THREE.MeshLambertMaterial({ color: 0x8abb5a }));
+  grass.rotation.x = -Math.PI / 2;
+  grass.position.set(0, -0.02, -55);
+  grass.receiveShadow = true;
+  scene.add(grass);
+
+  // ── Distant hills ──
+  [
+    [-70, -3, -110, 40, 18], [-30, -4, -130, 30, 16], [20, -5, -140, 50, 22],
+    [70, -3, -115, 35, 15], [-110, -4, -90, 45, 20], [100, -4, -95, 38, 17],
+    [-50, -3, -155, 55, 25],
+  ].forEach(([x, y, z, w, h]) => {
+    const hill = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 10, 6),
+      new THREE.MeshLambertMaterial({ color: 0x7aaa4a })
+    );
+    hill.scale.set(w, h, w * 0.6);
+    hill.position.set(x, y, z);
+    scene.add(hill);
+  });
+
+  // ── Sky gradient dome ──
+  const skyDome = new THREE.Mesh(
+    new THREE.SphereGeometry(240, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+    new THREE.MeshBasicMaterial({ color: 0x87ceeb, side: THREE.BackSide })
+  );
+  skyDome.position.y = -10;
+  scene.add(skyDome);
+
+  // ── Fountain at center ──
+  scene.add(buildFountain(0, -5));
+
+  // ── Columns along the agora perimeter ──
+  for (let row = 0; row < 9; row++) {
+    const z = 8 - row * 14;
+    scene.add(buildColumn(-10, 0, z));
+    scene.add(buildColumn( 10, 0, z));
+  }
+
+  // ── Cypress trees ──
+  [
+    [-13, 4], [13, 4], [-13, -12], [13, -12],
+    [-13, -28], [13, -28], [-14, -46], [14, -46],
+    [-14, -64], [14, -64], [-13, -82], [13, -82],
+    [-5, 14], [5, 14],
+  ].forEach(([x, z]) => scene.add(buildCypress(x, z)));
+
+  // ── Interactive artifacts (Greek agora section) ──
+  buildSundial(0, -8);
+  buildStoneTablet(-5.5, -13);
+  buildArchimedesScrew(5.5, -4);
+  buildLever(-6.5, -5);
+  buildCelestialGlobe(6.5, -13);
+  buildWaterClock(3.5, -12);
+
+  // ── Section decorations: low walls / steps at each section start ──
+  for (let era = 0; era < ERAS.length; era++) {
+    const zBase = -(era * SECTION_D);
+
+    // Philosopher NPC
+    const phil = buildPhilosopherNPC(era);
+    phil.position.set(-3, 0, zBase - SECTION_D * 0.65);
+    phil.rotation.y = 0.5;
+    scene.add(phil);
+    philosophers.push({ mesh: phil, eraIndex: era });
+
+    // Small bench/plinth near philosopher
+    const plinth = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.4, 1.5), matStone);
+    plinth.position.set(-3, 0.2, zBase - SECTION_D * 0.65 + 1.2);
+    plinth.castShadow = true;
+    scene.add(plinth);
+
+    // Gate after each era (except last)
+    if (era < ERAS.length - 1) {
+      buildGate(zBase - SECTION_D + 0.5, era);
+    }
+  }
+
+  // ── Background NPCs scattered around ──
+  const bgPositions = [
+    [4,-3],[-4,-3],[6,-9],[-6,-11],[3,-15],[-3,-17],[7,-24],[-7,-26],[4,-35],[-5,-38],
+    [6,-48],[-6,-51],[3,-59],[-4,-62],[5,-71],[-5,-73],[4,-84],[-4,-87],
+  ];
+  bgPositions.forEach(([x,z], i) => {
+    const npc = buildBgNPC(x, z, i);
+    scene.add(npc);
+    bgNPCs.push(npc);
+  });
+
+  // ── Era section markers (decorative stones with era name implied) ──
+  for (let era = 1; era < ERAS.length; era++) {
+    const zBase = -(era * SECTION_D);
+    // Decorative urns on gate pillars (added earlier via buildGate)
+    const urn1 = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.12, 0.6, 8), matWhiteMarble);
+    urn1.position.set(-3.7, 5.85, zBase + 0.5);
+    scene.add(urn1);
+    const urn2 = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.12, 0.6, 8), matWhiteMarble);
+    urn2.position.set(3.7, 5.85, zBase + 0.5);
+    scene.add(urn2);
+  }
+}
+
+// ─── PLAYER STATE ──────────────────────────────────────────────────────────────
+const keys = {};
+let yaw = Math.PI, pitch = 0;
+let pointerLocked = false;
+let dialogueOpen = false;
+let artifactOpen = false;
+let currentEra = 0;
+let philosopherAnswered = false;
+
+document.addEventListener('keydown', e => { keys[e.code] = true; });
+document.addEventListener('keyup',   e => { keys[e.code] = false; });
+document.addEventListener('keydown', e => {
+  if (e.code === 'KeyE') {
+    if (!dialogueOpen && !artifactOpen) tryInteract();
+  }
+  if (e.code === 'Escape') {
+    if (dialogueOpen) closeDialogue();
+    if (artifactOpen) {
+      document.getElementById('artifact-panel').style.display = 'none';
+      artifactOpen = false;
+      resumePointerLock();
+    }
+  }
+});
+
+renderer.domElement.addEventListener('click', () => {
+  if (!pointerLocked && !dialogueOpen && !artifactOpen) renderer.domElement.requestPointerLock();
+});
+document.addEventListener('pointerlockchange', () => {
+  pointerLocked = document.pointerLockElement === renderer.domElement;
+});
+document.addEventListener('mousemove', e => {
+  if (!pointerLocked || dialogueOpen || artifactOpen) return;
+  yaw -= e.movementX * 0.0022;
+  pitch -= e.movementY * 0.0022;
+  pitch = Math.max(-1.1, Math.min(1.1, pitch));
+});
+
+window.resumePointerLock = () => {
+  artifactOpen = false;
+  renderer.domElement.requestPointerLock();
+};
+
+// ─── INTERACTION ──────────────────────────────────────────────────────────────
+const raycaster = new THREE.Raycaster();
+const INTERACT_DIST = 4.5;
+
+function tryInteract() {
+  raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+  const targets = [
+    ...philosophers.map(p => p.mesh),
+    ...artifactMeshes,
+  ];
+  const hits = raycaster.intersectObjects(targets, true);
+  if (!hits.length || hits[0].distance > INTERACT_DIST) return;
+
+  let obj = hits[0].object;
+  while (obj && !obj.userData.isPhilosopher && !obj.userData.isArtifact) obj = obj.parent;
+  if (!obj) return;
+
+  if (obj.userData.isPhilosopher) {
+    openPhilosopherDialogue(obj.userData.eraIndex);
+  } else if (obj.userData.isArtifact) {
+    openArtifactPanel(obj.userData.artifactIdx);
+  }
+}
+
+function openArtifactPanel(idx) {
+  const data = ARTIFACT_DATA[idx];
+  document.getElementById('artifact-name').textContent = data.name;
+  document.getElementById('artifact-desc').textContent = data.desc;
+  document.getElementById('artifact-panel').style.display = 'block';
+  artifactOpen = true;
+  document.exitPointerLock();
+  playArtifactTone();
+}
+
+function openPhilosopherDialogue(eraIndex) {
+  if (eraIndex !== currentEra) return;
+  const phil = ERAS[eraIndex].philosopher;
+  dialogueOpen = true;
+  document.exitPointerLock();
+  document.getElementById('dialogue').style.display = 'block';
+  document.getElementById('dialogue-philosopher').textContent = `— ${phil.name} —`;
+
+  if (philosopherAnswered) {
+    document.getElementById('dialogue-text').textContent = phil.correct;
+    document.getElementById('dialogue-options').innerHTML =
+      `<button class="dialogue-btn" onclick="window._closeDialogue()">Farewell, ${phil.name}.</button>`;
+    return;
+  }
+
+  document.getElementById('dialogue-text').textContent = phil.greeting + '\n\n' + phil.question;
+  const opts = document.getElementById('dialogue-options');
+  opts.innerHTML = '';
+  phil.answers.forEach(ans => {
+    const btn = document.createElement('button');
+    btn.className = 'dialogue-btn';
+    btn.textContent = ans.text;
+    btn.onclick = () => handleAnswer(ans.correct, eraIndex, btn, opts);
+    opts.appendChild(btn);
+  });
+}
+
+function handleAnswer(correct, eraIndex, btn, opts) {
+  const phil = ERAS[eraIndex].philosopher;
+  Array.from(opts.children).forEach(b => b.disabled = true);
+  btn.classList.add(correct ? 'correct' : 'wrong');
+
+  if (correct) {
+    philosopherAnswered = true;
+    unlockGate(eraIndex);
+    document.getElementById('dialogue-text').textContent = phil.correct;
+    opts.innerHTML = `<button class="dialogue-btn correct" onclick="window._closeDialogue()">Continue the journey…</button>`;
+    flashResult('✓ Wisdom gained.', '#80e080');
+  } else {
+    document.getElementById('dialogue-text').textContent = phil.wrong;
+    setTimeout(() => {
+      btn.classList.remove('wrong');
+      Array.from(opts.children).forEach(b => b.disabled = false);
+      document.getElementById('dialogue-text').textContent = phil.question;
+    }, 2200);
+    flashResult('✗ Reflect further.', '#e08080');
+  }
+}
+
+function closeDialogue() {
+  dialogueOpen = false;
+  document.getElementById('dialogue').style.display = 'none';
+  renderer.domElement.requestPointerLock();
+}
+window._closeDialogue = closeDialogue;
+
+function flashResult(text, color) {
+  const el = document.getElementById('result-flash');
+  el.textContent = text; el.style.color = color; el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 2000);
+}
+
+function updateProgressBar() {
+  const bar = document.getElementById('progress-bar');
+  const dots = ERAS.map((_, i) => {
+    let cls = 'progress-dot';
+    if (i < currentEra) cls += ' unlocked';
+    else if (i === currentEra) cls += ' current';
+    return `<span class="${cls}" title="${ERAS[i].name}"></span>`;
+  }).join('');
+  bar.innerHTML = `Eras: ${dots}`;
+}
+
+// ─── MOVEMENT ─────────────────────────────────────────────────────────────────
+const SPEED = 5.0;
+
+function updateMovement(dt) {
+  if (dialogueOpen || artifactOpen) return;
+
+  const fwd   = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+  const right = new THREE.Vector3( Math.cos(yaw), 0, -Math.sin(yaw));
+  const move  = new THREE.Vector3();
+
+  if (keys['KeyW'] || keys['ArrowUp'])    move.add(fwd);
+  if (keys['KeyS'] || keys['ArrowDown'])  move.sub(fwd);
+  if (keys['KeyA'] || keys['ArrowLeft'])  move.sub(right);
+  if (keys['KeyD'] || keys['ArrowRight']) move.add(right);
+
+  if (move.lengthSq() > 0) {
+    move.normalize().multiplyScalar(SPEED * dt);
+    const np = camera.position.clone().add(move);
+
+    // Clamp X to agora width
+    np.x = Math.max(-9.5, Math.min(9.5, np.x));
+
+    // Gate collision: can't go beyond a locked gate's z
+    for (const gate of gates) {
+      if (gate.locked && np.z < gate.z + 0.4) {
+        np.z = Math.max(np.z, gate.z + 0.4);
+      }
+    }
+
+    // Don't go past start
+    np.z = Math.min(np.z, 12);
+
+    camera.position.copy(np);
+  }
+
+  camera.position.y = 1.7;
+  camera.rotation.order = 'YXZ';
+  camera.rotation.y = yaw;
+  camera.rotation.x = pitch;
+
+  // Detect era transitions
+  const newEra = Math.min(ERAS.length - 1, Math.max(0, Math.floor(-camera.position.z / SECTION_D)));
+  if (newEra !== currentEra) {
+    currentEra = newEra;
+    philosopherAnswered = false;
+    const eraTitle = document.getElementById('era-title');
+    eraTitle.textContent = ERAS[currentEra].name;
+    eraTitle.style.opacity = '0';
+    eraTitle.style.transition = 'none';
+    setTimeout(() => {
+      eraTitle.style.transition = 'opacity 1.2s';
+      eraTitle.style.opacity = '1';
+      setTimeout(() => {
+        eraTitle.style.transition = 'opacity 2.5s';
+        eraTitle.style.opacity = '0.6';
+      }, 2500);
+    }, 50);
+    updateProgressBar();
+  }
+}
+
+// ─── INTERACT HINT ────────────────────────────────────────────────────────────
+function updateInteractHint() {
+  if (dialogueOpen || artifactOpen) { document.getElementById('interact-hint').style.display = 'none'; return; }
+  raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+  const targets = [...philosophers.map(p => p.mesh), ...artifactMeshes];
+  const hits = raycaster.intersectObjects(targets, true);
+  const hint = document.getElementById('interact-hint');
+  if (hits.length && hits[0].distance < INTERACT_DIST) {
+    let obj = hits[0].object;
+    while (obj && !obj.userData.isPhilosopher && !obj.userData.isArtifact) obj = obj.parent;
+    if (obj && obj.userData.isPhilosopher) hint.innerHTML = 'Press <strong>E</strong> to speak';
+    else if (obj && obj.userData.isArtifact) hint.innerHTML = 'Press <strong>E</strong> to examine';
+    hint.style.display = 'block';
+  } else {
+    hint.style.display = 'none';
+  }
+}
+
+// ─── ANIMATE ──────────────────────────────────────────────────────────────────
+let lastTime = performance.now();
+let t = 0;
+
+function animate() {
+  requestAnimationFrame(animate);
+  const now = performance.now();
+  const dt = Math.min((now - lastTime) / 1000, 0.05);
+  lastTime = now;
+  t += dt;
+
+  updateMovement(dt);
+  updateInteractHint();
+
+  // Philosopher idle: gentle breathing sway
+  philosophers.forEach((p, i) => {
+    p.mesh.position.y = Math.sin(t * 1.1 + i * 1.5) * 0.025;
+    p.mesh.rotation.y = 0.5 + Math.sin(t * 0.4 + i) * 0.08;
+  });
+
+  // Background NPC gentle idle
+  bgNPCs.forEach((npc, i) => {
+    npc.position.y = Math.sin(t * 0.9 + i * 0.7) * 0.012;
+    npc.rotation.y += dt * (0.05 + 0.03 * Math.sin(t * 0.2 + i));
+  });
+
+  // Celestial globe slow spin
+  if (artifactMeshes[4]) artifactMeshes[4].rotation.y += dt * 0.2;
+
+  renderer.render(scene, camera);
+}
+
+// ─── START ────────────────────────────────────────────────────────────────────
+document.getElementById('start-btn').onclick = () => {
+  document.getElementById('intro').style.display = 'none';
+  buildWorld();
+  camera.position.set(0, 1.7, 10);
+  yaw = Math.PI;
+  document.getElementById('era-title').textContent = ERAS[0].name;
+  updateProgressBar();
+  initAudio();
+  renderer.domElement.requestPointerLock();
+  animate();
+};
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>
